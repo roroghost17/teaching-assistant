@@ -27,16 +27,31 @@ This is a conversational AI agent API designed to teach languages. It uses OpenA
     npm run dev
     ```
 
-## Deployment on Railway
+## Deployment on Render
 
-1.  **Sign Up/Login**: Go to [Railway.app](https://railway.app/) and sign up or login.
-2.  **New Project**: Click "New Project" and select "Deploy from GitHub repo".
-3.  **Select Repo**: Choose this repository.
-4.  **Variables**:
-    -   Go to the "Variables" tab in your Railway project dashboard.
+You can deploy this API on [Render](https://render.com) either manually or by using the `render.yaml` file (Blueprints).
+
+### Option 1: Manual Deployment
+
+1.  **Sign Up/Login**: Go to [Render.com](https://render.com/) and sign up or login.
+2.  **New Web Service**: Click the "New +" button and select "Web Service".
+3.  **Connect Repo**: Connect your GitHub repository.
+4.  **Configure**:
+    -   **Runtime**: Node
+    -   **Build Command**: `npm install && npm run build`
+    -   **Start Command**: `npm start`
+5.  **Environment Variables**:
+    -   Scroll down to the "Environment Variables" section.
     -   Add `OPENAI_API_KEY` with your OpenAI API key.
-    -   Railway will automatically set the `PORT` variable.
-5.  **Deploy**: Railway should automatically detect the `package.json` and build the project using `npm run build` and start it with `npm start`.
+    -   Render sets the `PORT` variable automatically, or you can set it to 3000.
+6.  **Deploy**: Click "Create Web Service". Render will build and deploy your API.
+
+### Option 2: Blueprint (render.yaml)
+
+1.  In the Render Dashboard, click "New +" and select "Blueprint".
+2.  Connect your repository.
+3.  Render will detect the `render.yaml` file.
+4.  Click "Apply" and provide the `OPENAI_API_KEY` when prompted.
 
 ## Usage
 
