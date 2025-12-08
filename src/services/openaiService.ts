@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import path from 'path';
+import { readPdfContent } from '../utils/fileUtils';
 
 dotenv.config();
 
@@ -19,13 +21,33 @@ interface TeacherParams {
   messages: ChatMessage[];
 }
 
+let klingonDictionaryCache: string | null = null;
+
 export const getTeacherResponse = async ({
   nativeLanguage,
   targetLanguage,
   difficulty,
   messages,
 }: TeacherParams): Promise<string | null> => {
-  const systemPrompt = createSystemPrompt(nativeLanguage, targetLanguage, difficulty);
+  let additionalContext = '';
+
+  if (targetLanguage.toLowerCase() === 'klingon') {
+    if (!klingonDictionaryCache) {
+      try {
+        const filePath = path.join(process.cwd(), 'db', 'Franchise - The Klingon Dictionary.pdf');
+        console.log(`Loading Klingon dictionary from: ${filePath}`);
+        klingonDictionaryCache = await readPdfContent(filePath);
+      } catch (error) {
+        console.error('Failed to load Klingon dictionary:', error);
+      }
+    }
+    
+    if (klingonDictionaryCache) {
+       additionalContext = klingonDictionaryCache;
+    }
+  }
+
+  const systemPrompt = createSystemPrompt(nativeLanguage, targetLanguage, difficulty, additionalContext);
 
   const conversation = [
     { role: 'system', content: systemPrompt },
@@ -49,7 +71,8 @@ export const getTeacherResponse = async ({
 const createSystemPrompt = (
   nativeLanguage: string,
   targetLanguage: string,
-  difficulty: string
+  difficulty: string,
+  additionalContext: string = ''
 ): string => {
   let difficultyInstruction = '';
 
@@ -67,7 +90,7 @@ const createSystemPrompt = (
       difficultyInstruction = `Adjust your teaching to the user's level.`;
   }
 
-  return `You are an expert language teacher. Your goal is to teach the user ${targetLanguage}. The user is fluent in ${nativeLanguage}.
+  let prompt = `You are an expert language teacher. Your goal is to teach the user ${targetLanguage}. The user is fluent in ${nativeLanguage}.
   
   ${difficultyInstruction}
   
@@ -76,5 +99,10 @@ const createSystemPrompt = (
   
   If the user asks a question in ${nativeLanguage}, answer it but try to bridge it back to ${targetLanguage}.
   `;
-};
 
+  if (additionalContext) {
+    prompt += `\n\nHere is the official reference material for ${targetLanguage}. Use this strictly for vocabulary and grammar rules:\n\n${additionalContext}`;
+  }
+
+  return prompt;
+};
