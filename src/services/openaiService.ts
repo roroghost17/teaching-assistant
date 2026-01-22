@@ -2,6 +2,10 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import path from 'path';
 import { readPdfContent } from '../utils/fileUtils';
+import { getMaximLogger, parseOpenAIMessages } from '../utils/maximUtils';
+import { v4 as uuidv4 } from 'uuid';
+import { MaximOpenAIClient } from "@maximai/maxim-js/openai-sdk";
+import { Trace } from '@maximai/maxim-js';
 
 dotenv.config();
 
@@ -31,6 +35,13 @@ export const getTeacherResponse = async ({
 }: TeacherParams): Promise<string | null> => {
   let additionalContext = '';
 
+  const maximLogger = getMaximLogger();
+  const wrappedClient = new MaximOpenAIClient(openai, maximLogger);
+
+  const trace = maximLogger.trace({
+    id: uuidv4(),
+  })
+
   if (targetLanguage.toLowerCase() === 'klingon') {
     if (!klingonDictionaryCache) {
       try {
@@ -41,9 +52,16 @@ export const getTeacherResponse = async ({
         console.error('Failed to load Klingon dictionary:', error);
       }
     }
-    
+
     if (klingonDictionaryCache) {
-       additionalContext = klingonDictionaryCache;
+      additionalContext = klingonDictionaryCache;
+      const retrieval = trace.retrieval({
+        id: uuidv4(),
+        name: "klingon-dictionary",
+      });
+      retrieval.input(targetLanguage);
+      retrieval.output(additionalContext);
+      retrieval.end();
     }
   }
 
@@ -55,12 +73,21 @@ export const getTeacherResponse = async ({
   ] as OpenAI.Chat.ChatCompletionMessageParam[];
 
   try {
-    const response = await openai.chat.completions.create({
+
+    const modelParameters = {
+      temperature: 0.7,
+    }
+
+    const response = await wrappedClient.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: conversation,
-      temperature: 0.7,
+      ...modelParameters,
+    }, {
+      headers: { "maxim-trace-id": trace.id }
     });
 
+
+    trace.end();
     return response.choices[0].message.content;
   } catch (error) {
     console.error('Error calling OpenAI:', error);
